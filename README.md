@@ -8,7 +8,7 @@ Use one combined card or several focused cards. Configure everything in HA's vis
 
 ## Layouts
 
-Screenshots show the actual card rendered with sample data. Icons in the standalone screenshot harness are illustrative; Home Assistant supplies its native icons when installed.
+Screenshots are captured inside Home Assistant using the Solar Slate theme, native HA icons and the system font. They show sample data; your selected HA theme and device determine the final colours and typography.
 
 **Multiple heating zones / TRVs** — independent temperatures, modes and actions in one card.
 
