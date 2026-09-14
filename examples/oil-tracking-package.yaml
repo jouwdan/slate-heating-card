@@ -1,0 +1,140 @@
+# OPTIONAL EXAMPLE: replace the input entity IDs before enabling this package.
+# The visual card editor configures display only; this backend tracks usage.
+# Slate Oil: reported usage accounting, using a configurable 9 kWh/L basis.
+# Heating/water allocation is an estimate from demand time, not a fuel meter.
+sensor:
+  - platform: history_stats
+    name: Slate Oil Report House Hours
+    unique_id: slate_oil_report_house_hours
+    entity_id: sensor.heating_demand
+    state: "On"
+    type: time
+    start: "{% set r = as_timestamp(states('sensor.oil_last_reading'), 0) %} {% set l = state_attr('sensor.slate_oil_tracked_cost', 'ledger') or {} %} {{ l.get('report', r) if r > l.get('report', r) else l.get('last', {}).get('start', r) }}"
+    end: "{{ as_timestamp(states('sensor.oil_last_reading'), 0) }}"
+  - platform: history_stats
+    name: Slate Oil Report Water Hours
+    unique_id: slate_oil_report_water_hours
+    entity_id: sensor.hot_water_demand
+    state: "On"
+    type: time
+    start: "{% set r = as_timestamp(states('sensor.oil_last_reading'), 0) %} {% set l = state_attr('sensor.slate_oil_tracked_cost', 'ledger') or {} %} {{ l.get('report', r) if r > l.get('report', r) else l.get('last', {}).get('start', r) }}"
+    end: "{{ as_timestamp(states('sensor.oil_last_reading'), 0) }}"
+  - platform: history_stats
+    name: Slate Oil Report Heating Known Hours
+    unique_id: slate_oil_report_heating_known_hours
+    entity_id: sensor.heating_demand
+    state: ["On", "Off"]
+    type: time
+    start: "{% set r = as_timestamp(states('sensor.oil_last_reading'), 0) %} {% set l = state_attr('sensor.slate_oil_tracked_cost', 'ledger') or {} %} {{ l.get('report', r) if r > l.get('report', r) else l.get('last', {}).get('start', r) }}"
+    end: "{{ as_timestamp(states('sensor.oil_last_reading'), 0) }}"
+  - platform: history_stats
+    name: Slate Oil Report Water Known Hours
+    unique_id: slate_oil_report_water_known_hours
+    entity_id: sensor.hot_water_demand
+    state: ["On", "Off"]
+    type: time
+    start: "{% set r = as_timestamp(states('sensor.oil_last_reading'), 0) %} {% set l = state_attr('sensor.slate_oil_tracked_cost', 'ledger') or {} %} {{ l.get('report', r) if r > l.get('report', r) else l.get('last', {}).get('start', r) }}"
+    end: "{{ as_timestamp(states('sensor.oil_last_reading'), 0) }}"
+
+template:
+  - triggers:
+      - trigger: homeassistant
+        event: start
+      - trigger: time_pattern
+        minutes: "/1"
+    conditions:
+      - condition: template
+        value_template: >-
+          {{ is_number(states('sensor.oil_level'))
+             and state_attr('sensor.oil_level', 'unit_of_measurement') == 'L'
+             and 0 <= states('sensor.oil_level') | float <= states('sensor.oil_capacity') | float(0)
+             and as_timestamp(states('sensor.oil_last_reading'), 0) > 0 }}
+    actions:
+      - variables:
+          old: "{{ state_attr('sensor.slate_oil_tracked_cost', 'ledger') or {} }}"
+          level: "{{ states('sensor.oil_level') | float }}"
+          report: "{{ as_timestamp(states('sensor.oil_last_reading'), 0) }}"
+      - if:
+          - condition: template
+            value_template: "{{ report > old.get('report', 0) }}"
+        then:
+          - action: homeassistant.update_entity
+            continue_on_error: true
+            target:
+              entity_id:
+                - sensor.slate_oil_report_house_hours
+                - sensor.slate_oil_report_water_hours
+                - sensor.slate_oil_report_heating_known_hours
+                - sensor.slate_oil_report_water_known_hours
+      - variables:
+          ledger: >-
+            {% set initial = old.get('level') is none %}
+            {% set fresh = not initial and report > old.get('report', 0) %}
+            {# Ignore small upward fluctuations; a >=20 L rise starts a refill baseline. #}
+            {% set refill = fresh and level - old.level >= 20 %}
+            {% set litres = [old.level - level, 0] | max if fresh and not refill else 0 %}
+            {% set hours = (report - old.get('report', report)) / 3600 %}
+            {% set pl = states('sensor.oil_price_per_litre') | float(none) %}
+            {% set pk = states('sensor.oil_price_per_kwh') | float(none) %}
+            {% set price = pl if pl is not none and pl > 0 and state_attr('sensor.oil_price_per_litre','unit_of_measurement') in ['EUR/L','€/L'] else (pk * 9 if pk is not none and pk > 0 and state_attr('sensor.oil_price_per_kwh','unit_of_measurement') in ['EUR/kWh','€/kWh'] else none) %}
+            {% set cost = litres * price if price is not none else 0 %}
+            {% set h = states('sensor.slate_oil_report_house_hours') | float(none) %}
+            {% set w = states('sensor.slate_oil_report_water_hours') | float(none) %}
+            {% set known_h = states('sensor.slate_oil_report_heating_known_hours') | float(0) %}
+            {% set known_w = states('sensor.slate_oil_report_water_known_hours') | float(0) %}
+            {# Use the entire reading interval; missing recorder history stays unallocated. #}
+            {% set split = fresh and not refill and hours > 0 and h is not none and w is not none and h + w > 0 and known_h >= hours - 0.1 and known_w >= hours - 0.1 %}
+            {% set hc = cost * h / (h + w) if split else 0 %}
+            {% set wc = cost - hc if split else 0 %}
+            {{ dict(
+              level=level if initial or refill else ([old.level, level] | min if fresh else old.level),
+              report=report if initial or fresh else old.report,
+              since=old.get('since', now().isoformat()),
+              reports=old.get('reports', 0) + (1 if fresh else 0),
+              litres=(old.get('litres', 0) + litres) | round(4),
+              cost=(old.get('cost', 0) + cost) | round(6),
+              heating=(old.get('heating', 0) + hc) | round(6),
+              water=(old.get('water', 0) + wc) | round(6),
+              unallocated=(old.get('unallocated', 0) + cost - hc - wc) | round(6),
+              unpriced_litres=(old.get('unpriced_litres', 0) + (litres if price is none else 0)) | round(4),
+              refills=old.get('refills', 0) + (1 if refill else 0),
+              last= dict(start=old.get('report', report), report=report, refill=refill, litres=litres | round(4) if not refill else none, price=price, cost=cost | round(6) if price is not none and not refill else none,
+                         heating=hc | round(6) if split and price is not none else none,
+                         water=wc | round(6) if split and price is not none else none,
+                         heating_hours=h, water_hours=w)
+                    if fresh else old.get('last', {})
+            ) }}
+    sensor:
+      - name: Slate Oil Tracked Cost
+        unique_id: slate_oil_tracked_cost
+        device_class: monetary
+        state_class: total
+        unit_of_measurement: EUR
+        icon: mdi:cash
+        state: "{{ ledger.cost }}"
+        attributes:
+          ledger: "{{ ledger }}"
+          energy_per_litre: 9
+          method: "Estimated litres from tank-level drop across the full reading interval; estimated cost at price on receipt; split by Wiser demand-hours with complete history. Rises of 20 L or more rebaseline as refills; smaller rises are ignored. Refill-interval consumption cannot be measured."
+  - sensor:
+      - name: Slate Oil Tracked Usage
+        unique_id: slate_oil_tracked_usage
+        device_class: volume
+        state_class: total_increasing
+        unit_of_measurement: L
+        availability: "{{ state_attr('sensor.slate_oil_tracked_cost','ledger') is mapping }}"
+        state: "{{ state_attr('sensor.slate_oil_tracked_cost','ledger').get('litres', 0) }}"
+      - name: Slate Oil Heating Cost Estimate
+        unique_id: slate_oil_heating_cost_estimate
+        device_class: monetary
+        state_class: total
+        unit_of_measurement: EUR
+        availability: "{{ state_attr('sensor.slate_oil_tracked_cost','ledger') is mapping }}"
+        state: "{{ state_attr('sensor.slate_oil_tracked_cost','ledger').get('heating', 0) }}"
+      - name: Slate Oil Hot Water Cost Estimate
+        unique_id: slate_oil_hot_water_cost_estimate
+        device_class: monetary
+        state_class: total
+        unit_of_measurement: EUR
+        availability: "{{ state_attr('sensor.slate_oil_tracked_cost','ledger') is mapping }}"
+        state: "{{ state_attr('sensor.slate_oil_tracked_cost','ledger').get('water', 0) }}"

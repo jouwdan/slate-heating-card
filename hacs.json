@@ -1,0 +1,7 @@
+{
+  "name": "Slate Heating Card",
+  "render_readme": true,
+  "content_in_root": true,
+  "filename": "slate-heating-card.js",
+  "homeassistant": "2026.9.0"
+}

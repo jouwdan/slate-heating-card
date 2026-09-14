@@ -1,0 +1,52 @@
+<!doctype html><meta charset="utf-8"><title>Slate Heating Card component checks</title>
+<style>body{font-family:system-ui;margin:16px;background:#111;color:#eee;--primary-text-color:#eee;--secondary-text-color:#aaa;--card-background-color:#202020;--secondary-background-color:#292929;--divider-color:#3b3b3b;--primary-color:#65cbb9}#mount{max-width:900px}ha-card{display:block}#results{white-space:pre-wrap}select{margin:12px;padding:8px}</style>
+<label>Preview <select id="variant"><option value="3">3 probes</option><option value="1">1 probe</option><option value="2">2 probes</option><option value="5">5 probes</option><option value="12">12 probes</option><option value="zones">Two heating zones</option><option value="range">Heating / cooling range</option><option value="heating">Heating only</option><option value="oil">Oil only</option></select></label><p id="results">Running checks…</p><div id="mount"></div>
+<script type="module">
+import '../slate-heating-card.js';
+const ids=Array.from({length:12},(_,i)=>`sensor.probe_${i}`), card=document.createElement('slate-heating-card');
+const states=Object.fromEntries(ids.map((id,i)=>[id,{state:String(50-i*2),attributes:{unit_of_measurement:'°C'}}]));
+states['climate.room']={state:'auto',attributes:{current_temperature:20,temperature:19,hvac_modes:['auto','heat','off'],preset_modes:['Boost 30m','Boost 1h','Boost 2h'],min_temp:5,max_temp:30}};
+states['sensor.oil']={state:'50',attributes:{unit_of_measurement:'%'}};
+const calls=[];
+states['climate.room2']={state:'heat',attributes:{friendly_name:'Bedroom',supported_features:1,current_temperature:20.5,temperature:17,hvac_modes:['heat','off'],min_temp:7,max_temp:28}};
+states['climate.range']={state:'heat_cool',attributes:{friendly_name:'Heat pump',supported_features:3,current_temperature:21,target_temp_low:18,target_temp_high:24,hvac_modes:['heat','cool','heat_cool','off'],min_temp:7,max_temp:30}};
+states['climate.room'].attributes.friendly_name='Living room';
+const hass={states,locale:{language:'en'},callService:async(domain,service,data)=>{calls.push({domain,service,data});if(domain==='climate' && service==='set_temperature') Object.assign(states[data.entity_id].attributes,data);},callWS:async query=>{if(query.type!=='get_states')throw Error('Unexpected integration API call');return Object.entries(states).map(([entity_id,s])=>({...s,entity_id}));}};
+const assert=(v,m)=>{if(!v)throw Error(m);};
+document.querySelector('#mount').append(card);card.hass=hass;
+try {
+ for(const n of [0,1,2,3,5,12]) {
+  card.setConfig({sections:['water'],tank_entities:ids.slice(0,n)});
+  const root=card.shadowRoot,water=root.querySelector('.water');
+  assert(water.querySelectorAll('[data-tank]').length===n,`Render ${n} buttons`);
+  assert(water.querySelectorAll('[data-layer]').length===n,`Render ${n} layers`);
+  assert(water.querySelector('.tank-estimate').hidden===(n<2),`Estimate visibility ${n}`);
+ }
+ card.setConfig({sections:['heating'],heating_entity:'climate.room'});
+ const input=card.shadowRoot.querySelector('.heating .target'); input.focus();
+ card.hass={...hass,states:{...states,'climate.room':{...states['climate.room'],attributes:{...states['climate.room'].attributes,current_temperature:21}}}};
+ assert(card.shadowRoot.activeElement===input,'Live updates preserve input focus');
+ card.setConfig({sections:['oil','water','heating'],oil_percentage_entity:'sensor.oil',tank_entities:ids.slice(0,3),heating_entity:'climate.room'});
+ assert([...card.shadowRoot.querySelector('.panels').children].map(e=>e.classList.contains('oil')?'oil':e.classList.contains('water')?'water':'heating').join(',')==='oil,water,heating','Section order');
+ const sibling=document.createElement('slate-heating-card'); sibling.setConfig({sections:['water'],tank_entities:[ids[4]]});sibling.hass=hass;
+ assert(sibling.shadowRoot.querySelectorAll('[data-tank]').length===1 && card.shadowRoot.querySelectorAll('[data-tank]').length===3,'Separate instances');
+ card.setConfig({heating_entities:['climate.room','climate.room2'],boost_script:'script.generic_boost'});
+ assert(card.shadowRoot.querySelectorAll('.panel.heating').length===2,'Two zone panels');
+ const panels=[...card.shadowRoot.querySelectorAll('.panel.heating')],first=panels[0].querySelector('.target'),second=panels[1].querySelector('.target');
+ first.value='19.5';first.dispatchEvent(new Event('input'));second.value='22.5';second.dispatchEvent(new Event('input'));
+ panels[1].querySelector('.set').click();await new Promise(r=>setTimeout(r,0));
+ assert(calls.at(-1).data.entity_id==='climate.room2' && calls.at(-1).data.temperature===22.5,'Zone action target');
+ assert(first.value==='19.5','Another zone edit preserves local draft');
+ await card.scriptAction('heating_0',false,60);
+ assert(calls.at(-1).domain==='script' && calls.at(-1).data.variables.target_entity==='climate.room' && calls.at(-1).data.variables.duration_minutes===60,'Generic boost script contract');
+ card.setConfig({heating_entities:['climate.range']});assert(!card.shadowRoot.querySelector('.heating .range-field').hidden,'Range controls');
+ for (const [sections,title] of [[['oil'],'Oil Level'],[['water'],'Hot water'],[['heating'],'Heating'],[[],'Slate Heating Card']]) {
+  card.setConfig({sections}); assert(card.shadowRoot.querySelector('header h2 span').textContent===title,`Automatic heading ${title}`);
+ }
+ card.setConfig({sections:['oil'],name:'Fuel tank'});assert(card.shadowRoot.querySelector('header h2 span').textContent==='Fuel tank','Custom title preserved');
+ card.setConfig({sections:['oil'],name:''});assert(card.shadowRoot.querySelector('header h2 span').textContent==='Oil Level','Cleared title uses automatic heading');
+ document.querySelector('#results').textContent='PASS: automatic section headings, custom title overrides, multiple-zone action routing, independent target drafts, generic boost script, heat/cool ranges;  0/1/2/3/5/12 probes, optional estimates, section ordering, independent instances and input focus during live updates.';
+} catch(e) {document.querySelector('#results').textContent='FAIL: '+e.stack;throw e;}
+const preview=()=>{const v=document.querySelector('#variant').value;card.setConfig(v==='zones'?{name:'Heating',heating_entities:['climate.room','climate.room2']}:v==='range'?{heating_entities:['climate.range']}:v==='heating'?{sections:['heating'],heating_entity:'climate.room'}:v==='oil'?{sections:['oil'],oil_percentage_entity:'sensor.oil'}:{name:'Water tank',sections:['water'],tank_entities:ids.slice(0,Number(v))});};
+document.querySelector('#variant').onchange=preview;preview();
+</script>

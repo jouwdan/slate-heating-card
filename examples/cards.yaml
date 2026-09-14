@@ -1,0 +1,65 @@
+# Each YAML document below is a separate Lovelace card.
+# Replace entity IDs with your own. Omit controls/sensors you do not have.
+
+# Combined: sections and heading are inferred.
+type: custom:slate-heating-card
+heating_entities: [climate.living_room]
+hot_water_entity: water_heater.hot_water
+tank_entities:
+  - sensor.tank_top_temperature
+  - sensor.tank_middle_temperature
+  - sensor.tank_bottom_temperature
+oil_level_entity: sensor.oil_level
+oil_percentage_entity: sensor.oil_percentage
+---
+# Multiple rooms/TRVs, each using its HA friendly name.
+type: custom:slate-heating-card
+name: Home heating
+heating_entities:
+  - climate.living_room
+  - climate.bedroom
+  - climate.study
+layout: auto
+# Optional: scripts must implement timer/restoration per entity in HA.
+# boost_script: script.timed_heating_boost
+# cancel_boost_script: script.cancel_heating_boost
+# schedule_entity: schedule.heating
+---
+# Tank-only: any number of probes, ordered top to bottom.
+type: custom:slate-heating-card
+tank_entities:
+  - sensor.tank_top
+  - sensor.tank_upper
+  - sensor.tank_middle
+  - sensor.tank_lower
+  - sensor.tank_bottom
+tank_hot_threshold: 40
+show_tank_estimate: true
+---
+# Hot water controlled by a switch; no external probes required.
+type: custom:slate-heating-card
+hot_water_entity: switch.hot_water
+---
+# Heat-pump range controls are detected from the climate capabilities/mode.
+type: custom:slate-heating-card
+name: Heat pump
+heating_entities: [climate.heat_pump]
+---
+# Oil only. Automatic heading is Oil Level.
+type: custom:slate-heating-card
+oil_level_entity: sensor.oil_level
+oil_percentage_entity: sensor.oil_percentage
+---
+# Oil with the optional backend example's ledger and sensors.
+type: custom:slate-heating-card
+oil_level_entity: sensor.oil_level
+oil_percentage_entity: sensor.oil_percentage
+oil_report_entity: sensor.oil_last_reading
+oil_price_entity: sensor.oil_price_per_litre
+oil_price_kwh_entity: sensor.oil_price_per_kwh
+oil_cost_entity: sensor.slate_oil_tracked_cost
+oil_usage_entity: sensor.slate_oil_tracked_usage
+oil_heating_cost_entity: sensor.slate_oil_heating_cost_estimate
+oil_water_cost_entity: sensor.slate_oil_hot_water_cost_estimate
+currency: EUR
+energy_per_litre: 9
