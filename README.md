@@ -4,7 +4,7 @@
 
 Use one combined card or several focused cards. Configure everything in HA's visual card editor. Standard `climate` entities work across integrations, with controls based on the capabilities each entity exposes. No theme dependency, build step, external fonts, telemetry or runtime dependencies.
 
-![Combined heating, hot water and oil card](docs/images/combined.png)
+![Combined heating, hot water and oil card](docs/images/combined.jpg)
 
 ## Layouts
 
@@ -12,14 +12,14 @@ Screenshots are captured inside Home Assistant using the Solar Slate theme, nati
 
 **Multiple heating zones / TRVs** — independent temperatures, modes and actions in one card.
 
-![Two heating zones](docs/images/zones.png)
+![Two heating zones](docs/images/zones.jpg)
 
 **Tank with five probes**, **heat-pump target range**, and **oil only with estimated costs expanded**, at phone width:
 
 <p>
-  <img src="docs/images/tank.png" alt="Water tank with five temperature probes" width="280">
-  <img src="docs/images/range.png" alt="Heat pump with lower and upper temperature targets" width="280">
-  <img src="docs/images/oil.png" alt="Oil Level card with estimated interval costs" width="280">
+  <img src="docs/images/tank.jpg" alt="Water tank with five temperature probes" width="280">
+  <img src="docs/images/range.jpg" alt="Heat pump with lower and upper temperature targets" width="280">
+  <img src="docs/images/oil.jpg" alt="Oil Level card with estimated interval costs" width="280">
 </p>
 
 ## Requirements and support
