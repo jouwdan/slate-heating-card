@@ -46,12 +46,10 @@ Controls respect entity temperature limits, steps and HA's temperature unit. Una
 
 ### HACS custom repository
 
-This archive is **ready to publish as a HACS dashboard repository**. It is not a published HACS listing and does not yet have a public repository URL. Maintainers: follow [RELEASING.md](RELEASING.md) first.
-
-After publication:
+Install from the public [jouwdan/slate-heating-card repository](https://github.com/jouwdan/slate-heating-card) as a HACS custom repository. It is not currently included in the default HACS catalogue.
 
 1. Open **HACS → menu → Custom repositories**.
-2. Add the public GitHub repository URL, with category **Dashboard**.
+2. Enter `https://github.com/jouwdan/slate-heating-card` as the repository URL and choose category **Dashboard**, then select **Add**.
 3. Find **Slate Heating Card** in HACS and download it.
 4. Check **Settings → Dashboards → Resources** for `/hacsfiles/slate-heating-card/slate-heating-card.js`, type **JavaScript module**. Add it if your installation did not do so automatically. Advanced mode may be needed to see Resources.
 5. Reload the frontend, edit a dashboard and choose **Add card → Slate Heating Card**.
@@ -62,7 +60,7 @@ The repository layout follows the [HACS dashboard requirements](https://www.hacs
 
 ### Manual
 
-1. Copy `slate-heating-card.js` into `/config/www/`. The File editor may show this as `/homeassistant/www/`.
+1. Download [slate-heating-card.js](https://raw.githubusercontent.com/jouwdan/slate-heating-card/main/slate-heating-card.js) and copy it into `/config/www/`. The File editor may show this as `/homeassistant/www/`.
 2. Add `/local/slate-heating-card.js?v=0.1.0` in **Settings → Dashboards → Resources**, type **JavaScript module**.
 3. Reload the browser or HA companion app frontend and add **Slate Heating Card**.
 
@@ -233,4 +231,4 @@ To run the sample browser checks, serve this folder locally (`python3 -m http.se
 
 Keep `slate-heating-card.js` as the directly installable module. See [RELEASING.md](RELEASING.md) for packaging/publication and [CHANGELOG.md](CHANGELOG.md) for version history.
 
-MIT licensed. Contributions are welcome; include the HA version, relevant capability attributes and a minimal anonymised card configuration in bug reports. Remove credentials and household-specific identifiers before sharing diagnostics.
+MIT licensed. [Report an issue](https://github.com/jouwdan/slate-heating-card/issues) or [open a pull request](https://github.com/jouwdan/slate-heating-card/pulls). Include the HA version, relevant capability attributes and a minimal anonymised card configuration in bug reports. Remove credentials and household-specific identifiers before sharing diagnostics.
