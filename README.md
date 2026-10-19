@@ -40,6 +40,8 @@ Screenshots are captured inside Home Assistant using the Solar Slate theme, nati
 | Wiser climate | Optional native timed boosts and weekly programme editor |
 | Other systems | Optional HA boost scripts and a link to a schedule entity |
 
+Heating zone panels have an orange background and border while the entity reports `hvac_action: heating` or `is_heating: true`. The highlight clears when heating stops or the entity becomes unavailable. A boost or heat mode alone does not imply active heating.
+
 Controls respect entity temperature limits, steps and HA's temperature unit. Unavailable entities are shown as unavailable. The card reads back state after ordinary controls; a slow device can produce a “not confirmed yet” message rather than a false success.
 
 ## Installation

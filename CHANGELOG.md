@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Highlight actively heating zones with an orange background and border; clear the highlight when heating stops or the zone becomes unavailable.
+- Apply the active status badge to standard climate heating reports as well as Wiser heating reports.
+
 ## 0.1.0 — 2026-09-14
 
 Initial standalone release preparation.

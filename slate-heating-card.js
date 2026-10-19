@@ -222,6 +222,7 @@ class SlateHeatingCard extends HTMLElement {
         button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--primary-color);outline-offset:2px}
         nav button{flex:1;border:0;background:transparent;color:var(--secondary-text-color)}nav button[aria-pressed=true]{background:var(--card-background-color);color:var(--primary-text-color);box-shadow:0 1px 4px #0002}
         .panels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.panels.single,.panels.stacked{grid-template-columns:1fr}.panels>.oil{grid-column:1/-1;margin-top:0}.empty{padding:16px 0}.tank-vessel{min-height:90px}.panel{padding:18px;border:1px solid var(--divider-color);border-radius:14px;min-width:0}
+        .panel.heating.is-heating{background:linear-gradient(#fb923c24,#fb923c24);border-color:var(--ws-orange)}
         .hero{margin:22px 0}.eyebrow,.muted{font-size:12px;color:var(--secondary-text-color);line-height:1.6}.amount{font-size:42px;line-height:1.3;letter-spacing:-1px;font-weight:600;font-variant-numeric:tabular-nums}.unit{font-size:22px;letter-spacing:0;font-weight:400;color:var(--secondary-text-color);margin-left:4px}
         .tank-estimate{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:12px}
         .tank-estimate-label{font-size:12px;color:var(--secondary-text-color)}
@@ -602,7 +603,9 @@ class SlateHeatingCard extends HTMLElement {
       panel.setAttribute('aria-label', `${this.channelName(kind)} controls`);
       panel.querySelector('.boost-head').hidden = panel.querySelector('.boost-buttons').hidden = !this.config.show_boost || !this.entityId(kind);
       panel.querySelector('.channel-details').hidden = !this.entityId(kind);
-      const caps = heatingCapabilities(entity), badge = panel.querySelector('.state'); badge.textContent = !ready ? 'Unavailable' : attr.is_boosted ? 'Boosting' : attr.is_heating || attr.hvac_action === 'heating' ? 'Heating' : attr.hvac_action && attr.hvac_action !== 'off' ? titleCase(attr.hvac_action) : entity.state === 'off' ? 'Off' : caps.domain === 'climate' ? 'Idle' : titleCase(entity.state); badge.classList.toggle('active', !!attr.is_boosted || !!attr.is_heating);
+      const isHeating = !!ready && (attr.is_heating === true || attr.hvac_action === 'heating');
+      panel.classList.toggle('is-heating', kind !== 'water' && isHeating);
+      const caps = heatingCapabilities(entity), badge = panel.querySelector('.state'); badge.textContent = !ready ? 'Unavailable' : attr.is_boosted ? 'Boosting' : isHeating ? 'Heating' : attr.hvac_action && attr.hvac_action !== 'off' ? titleCase(attr.hvac_action) : entity.state === 'off' ? 'Off' : caps.domain === 'climate' ? 'Idle' : titleCase(entity.state); badge.classList.toggle('active', !!ready && (!!attr.is_boosted || isHeating));
       if (kind !== 'water') panel.querySelector('.reading').textContent = ready ? this.temperature(attr.current_temperature) : '—';
       else { this.syncTank(panel); panel.querySelectorAll('[data-tank]').forEach(el => {
         const sensor = this._hass.states[this.config.tank_entities[Number(el.dataset.tank)]];

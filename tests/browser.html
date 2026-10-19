@@ -33,6 +33,23 @@ try {
  card.setConfig({heating_entities:['climate.room','climate.room2'],boost_script:'script.generic_boost'});
  assert(card.shadowRoot.querySelectorAll('.panel.heating').length===2,'Two zone panels');
  const panels=[...card.shadowRoot.querySelectorAll('.panel.heating')],first=panels[0].querySelector('.target'),second=panels[1].querySelector('.target');
+ const updateRoom=(state,attributes)=>{card.hass={...hass,states:{...states,'climate.room':{...states['climate.room'],state,attributes:{...states['climate.room'].attributes,...attributes}}}};};
+ updateRoom('heat',{hvac_action:'heating'});
+ assert(panels[0].classList.contains('is-heating') && !panels[1].classList.contains('is-heating'),'Only actively heating zone highlighted');
+ assert(panels[0].querySelector('.state').classList.contains('active'),'Standard HVAC heating badge active');
+ assert(getComputedStyle(panels[0]).backgroundImage.includes('gradient'),'Heating background applied');
+ updateRoom('heat',{hvac_action:'idle',is_boosted:true});
+ assert(!panels[0].classList.contains('is-heating'),'Idle boost clears heating highlight');
+ updateRoom('auto',{is_heating:true});
+ assert(panels[0].classList.contains('is-heating'),'Wiser heating highlighted');
+ updateRoom('unavailable',{is_heating:true,hvac_action:'heating'});
+ assert(!panels[0].classList.contains('is-heating'),'Unavailable clears stale heating highlight');
+ updateRoom('unknown',{is_heating:true});
+ assert(!panels[0].classList.contains('is-heating'),'Unknown clears stale heating highlight');
+ card.hass={...hass,states:{...states,'climate.room':undefined}};
+ assert(!panels[0].classList.contains('is-heating'),'Missing entity clears heating highlight');
+ card.hass=hass;
+
  first.value='19.5';first.dispatchEvent(new Event('input'));second.value='22.5';second.dispatchEvent(new Event('input'));
  panels[1].querySelector('.set').click();await new Promise(r=>setTimeout(r,0));
  assert(calls.at(-1).data.entity_id==='climate.room2' && calls.at(-1).data.temperature===22.5,'Zone action target');
@@ -45,7 +62,7 @@ try {
  }
  card.setConfig({sections:['oil'],name:'Fuel tank'});assert(card.shadowRoot.querySelector('header h2 span').textContent==='Fuel tank','Custom title preserved');
  card.setConfig({sections:['oil'],name:''});assert(card.shadowRoot.querySelector('header h2 span').textContent==='Oil Level','Cleared title uses automatic heading');
- document.querySelector('#results').textContent='PASS: automatic section headings, custom title overrides, multiple-zone action routing, independent target drafts, generic boost script, heat/cool ranges;  0/1/2/3/5/12 probes, optional estimates, section ordering, independent instances and input focus during live updates.';
+ document.querySelector('#results').textContent='PASS: active heating backgrounds, idle/boost/unavailable transitions, independent zone highlights, automatic section headings, custom title overrides, multiple-zone action routing, independent target drafts, generic boost script, heat/cool ranges;  0/1/2/3/5/12 probes, optional estimates, section ordering, independent instances and input focus during live updates.';
 } catch(e) {document.querySelector('#results').textContent='FAIL: '+e.stack;throw e;}
 const preview=()=>{const v=document.querySelector('#variant').value;card.setConfig(v==='zones'?{name:'Heating',heating_entities:['climate.room','climate.room2']}:v==='range'?{heating_entities:['climate.range']}:v==='heating'?{sections:['heating'],heating_entity:'climate.room'}:v==='oil'?{sections:['oil'],oil_percentage_entity:'sensor.oil'}:{name:'Water tank',sections:['water'],tank_entities:ids.slice(0,Number(v))});};
 document.querySelector('#variant').onchange=preview;preview();
