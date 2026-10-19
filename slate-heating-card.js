@@ -1,5 +1,5 @@
 /* Slate Heating Card: standard HA controls, optional integration-specific extras. */
-export const VERSION = '0.1.0';
+export const VERSION = '0.1.1';
 export const WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const available = state => state && !['unknown', 'unavailable'].includes(state.state);
 const node = (tag, text, cls) => { const el = document.createElement(tag); if (text !== undefined) el.textContent = text; if (cls) el.className = cls; return el; };

@@ -1,6 +1,6 @@
 # Slate Heating Card
 
-**v0.1.0** · A composable, mobile-friendly Home Assistant card for heating zones, hot water, tank temperatures and oil levels.
+**v0.1.1** · A composable, mobile-friendly Home Assistant card for heating zones, hot water, tank temperatures and oil levels.
 
 Use one combined card or several focused cards. Configure everything in HA's visual card editor. Standard `climate` entities work across integrations, with controls based on the capabilities each entity exposes. No theme dependency, build step, external fonts, telemetry or runtime dependencies.
 
@@ -8,11 +8,15 @@ Use one combined card or several focused cards. Configure everything in HA's vis
 
 ## Layouts
 
-Screenshots are captured inside Home Assistant using the Solar Slate theme, native HA icons and the system font. They show sample data; your selected HA theme and device determine the final colours and typography.
+The combined, zones, tank, range and oil screenshots are captured inside Home Assistant using the Solar Slate theme, native HA icons and the system font. They show sample data; your selected HA theme and device determine the final colours and typography. The active-heating preview uses synthetic browser states.
 
 **Multiple heating zones / TRVs** — independent temperatures, modes and actions in one card.
 
 ![Two heating zones](docs/images/zones.jpg)
+
+**Active heating** — orange highlighting follows each zone's reported heating state. Synthetic browser preview:
+
+<img src="docs/images/active-heating.jpg" alt="Living room actively heating with an orange background and an idle Bedroom zone" width="400">
 
 **Tank with five probes**, **heat-pump target range**, and **oil only with estimated costs expanded**, at phone width:
 
@@ -63,7 +67,7 @@ The repository layout follows the [HACS dashboard requirements](https://www.hacs
 ### Manual
 
 1. Download [slate-heating-card.js](https://raw.githubusercontent.com/jouwdan/slate-heating-card/main/slate-heating-card.js) and copy it into `/config/www/`. The File editor may show this as `/homeassistant/www/`.
-2. Add `/local/slate-heating-card.js?v=0.1.0` in **Settings → Dashboards → Resources**, type **JavaScript module**.
+2. Add `/local/slate-heating-card.js?v=0.1.1` in **Settings → Dashboards → Resources**, type **JavaScript module**.
 3. Reload the browser or HA companion app frontend and add **Slate Heating Card**.
 
 Only the JavaScript file is needed at runtime. The ZIP is a source/documentation handoff, not an HA integration or add-on.

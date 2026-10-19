@@ -1,6 +1,6 @@
 {
   "name": "slate-heating-card",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Composable Home Assistant card for heating zones, hot water, tank temperatures and oil level",
   "type": "module",
   "license": "MIT",
