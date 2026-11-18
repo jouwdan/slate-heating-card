@@ -18,7 +18,7 @@ export const OIL_FIELDS = {
 };
 export const DEFAULTS = {
   name: '', heating_name: 'Heating', water_name: 'Hot water', oil_name: 'Oil Level',
-  layout: 'auto', show_header: true, show_schedule: true, show_boost: true,
+  heating_state_mode: 'reported', layout: 'auto', show_header: true, show_schedule: true, show_boost: true,
   tank_hot_threshold: 40, show_tank_estimate: true, currency: 'EUR', energy_per_litre: 9
 };
 export const ENTITY_FIELDS = ['heating_entity', 'hot_water_entity', 'tank_top_entity', 'tank_middle_entity', 'tank_bottom_entity', 'oil_level_entity', 'oil_percentage_entity', ...Object.values(OIL_FIELDS)];
@@ -39,6 +39,7 @@ export function normalizeConfig(config) {
   const inferred = [c.heating_entities.length > 0 && 'heating', (c.hot_water_entity || c.tank_entities.length > 0) && 'water', (c.oil_level_entity || c.oil_percentage_entity) && 'oil'].filter(Boolean);
   c.sections = c.sections ?? inferred;
   if (!Array.isArray(c.sections) || c.sections.some(s => !['heating', 'water', 'oil'].includes(s)) || new Set(c.sections).size !== c.sections.length) throw new Error('Sections must contain Heating, Hot water or Oil once each, in display order.');
+  if (!['reported', 'temperature'].includes(c.heating_state_mode)) throw new Error('Choose Reported state or Temperature demand for heating state.');
   if (!['auto', 'stacked'].includes(c.layout)) throw new Error('Choose Automatic or Stacked layout.');
   for (const key of ['show_header', 'show_schedule', 'show_boost', 'show_tank_estimate']) if (typeof c[key] !== 'boolean') throw new Error(`${key} must be true or false.`);
   for (const key of ['name', 'heating_name', 'water_name', 'oil_name']) if (typeof c[key] !== 'string') throw new Error(`${key} must be text.`);
@@ -47,6 +48,17 @@ export function normalizeConfig(config) {
   if (!Number.isFinite(c.energy_per_litre) || c.energy_per_litre <= 0 || c.energy_per_litre > 20) throw new Error('Energy per litre must be greater than 0 and at most 20 kWh/L.');
   if (!/^[A-Z]{3}$/.test(c.currency)) throw new Error('Use a three-letter currency code, such as EUR or GBP.');
   return c;
+}
+// Temperature demand is opt-in for thermostats whose reported action stays idle.
+// This estimates demand; it does not confirm boiler output or valve position.
+export function heatingActive(entity, stateMode = 'reported') {
+  if (!available(entity)) return false;
+  const attr = entity.attributes || {};
+  return attr.is_heating === true || attr.hvac_action === 'heating' || (
+    stateMode === 'temperature' && entity.state === 'heat' &&
+    Number.isFinite(attr.temperature) && Number.isFinite(attr.current_temperature) &&
+    attr.temperature > attr.current_temperature
+  );
 }
 export function oilEntities(config) { return Object.fromEntries(Object.entries(OIL_FIELDS).map(([key, field]) => [key, config?.[field]])); }
 const entityField = (name, domain = 'sensor') => ({ name, selector: { entity: { domain } } });
@@ -57,7 +69,7 @@ export function configForm() {
   const labels = {
     name: 'Card title', sections: 'Sections · drag to reorder', layout: 'Layout', show_header: 'Show card header',
     show_schedule: 'Show schedule editor', show_boost: 'Show timed boosts', hub: 'Wiser hub name (optional adapter)', boost_script: 'Timed boost script · optional', cancel_boost_script: 'Cancel boost script · optional', schedule_entity: 'Schedule helper / entity · optional',
-    heating_name: 'Single-zone title', heating_entities: 'Heating zones / TRVs · drag to reorder', heating_entity: 'Heating climate', water_name: 'Hot water title', hot_water_entity: 'Hot water controller',
+    heating_state_mode: 'Heating state', heating_name: 'Single-zone title', heating_entities: 'Heating zones / TRVs · drag to reorder', heating_entity: 'Heating climate', water_name: 'Hot water title', hot_water_entity: 'Hot water controller',
     tank_top_entity: 'Tank top temperature', tank_middle_entity: 'Tank middle temperature', tank_bottom_entity: 'Tank bottom temperature',
     tank_entities: 'Tank sensors · top to bottom', tank_hot_threshold: 'Hot-water reference (°C)', show_tank_estimate: 'Estimate hot share with two or more probes',
     oil_name: 'Oil section title', oil_level_entity: 'Oil volume remaining', oil_percentage_entity: 'Oil percentage full',
@@ -69,13 +81,13 @@ export function configForm() {
     schema: [textField('name'), { name: 'sections', selector: { select: { multiple: true, reorder: true, options: [{value:'heating',label:'Heating'}, {value:'water',label:'Hot water / tank'}, {value:'oil',label:'Oil'}] } } },
       { name: 'layout', selector: { select: { options: [{value:'auto',label:'Automatic columns'}, {value:'stacked',label:'Stacked'}] } } },
       group('Appearance & controls', [toggleField('show_header'), toggleField('show_schedule'), toggleField('show_boost'), textField('hub'),entityField('boost_script','script'),entityField('cancel_boost_script','script'),{name:'schedule_entity',selector:{entity:{}}}]),
-      group('Heating zones / TRVs', [{name:'heating_entities',selector:{entity:{filter:{domain:'climate'},multiple:true,reorder:true}}},textField('heating_name')]),
+      group('Heating zones / TRVs', [{name:'heating_entities',selector:{entity:{filter:{domain:'climate'},multiple:true,reorder:true}}},textField('heating_name'), {name:'heating_state_mode',selector:{select:{options:[{value:'reported',label:'Reported state'},{value:'temperature',label:'Temperature demand'}]}}}]),
       group('Hot water & tank', [textField('water_name'), entityField('hot_water_entity',['climate','water_heater','switch']), {name:'tank_entities',selector:{entity:{filter:{domain:'sensor',device_class:'temperature'},multiple:true,reorder:true}}}, toggleField('show_tank_estimate'), {name:'tank_hot_threshold',selector:{number:{min:30,max:60,step:1,mode:'box'}}}]),
       group('Oil level', [textField('oil_name'), entityField('oil_level_entity'), entityField('oil_percentage_entity')]),
       group('Estimated oil costs · optional', [...Object.values(OIL_FIELDS).map(name=>entityField(name)), textField('currency'), {name:'energy_per_litre',selector:{number:{min:0.1,max:20,step:0.1,mode:'box'}}}])
     ],
     computeLabel: schema => labels[schema.name] || schema.name,
-    computeHelper: schema => schema.name === 'boost_script' ? 'For systems without native timed boosts. HA receives target_entity and duration_minutes; the script must own the timer and restore the prior setting. No timer runs in the browser.' : schema.name === 'cancel_boost_script' ? 'Receives target_entity. Restore the previous setting in HA.' : schema.name === 'schedule_entity' ? 'Opens the selected schedule helper or integration entity. Wiser programmes can also be edited directly.' : schema.name === 'heating_entities' ? 'Choose the climate entities for your rooms or TRVs, from any HA integration. Each uses its supported controls. Multiple zones use their HA entity names.' : schema.name === 'tank_entities' ? 'Add any number of probes and drag them from top to bottom. The percentage estimate assumes even spacing across the tank height; one probe shows temperature only.' : schema.name === 'oil_cost_entity' ? 'Optional backend ledger; the card only displays estimates and never calculates or stores oil usage in the browser.' : schema.name === 'sections' ? 'Use one section as a standalone card, or combine them. Each card instance has its own entities.' : undefined
+    computeHelper: schema => schema.name === 'heating_state_mode' ? 'Use Temperature demand only when the device does not report heating reliably. Heat mode with a target above room temperature shows Heating; this estimates demand, not confirmed heat output.' : schema.name === 'boost_script' ? 'For systems without native timed boosts. HA receives target_entity and duration_minutes; the script must own the timer and restore the prior setting. No timer runs in the browser.' : schema.name === 'cancel_boost_script' ? 'Receives target_entity. Restore the previous setting in HA.' : schema.name === 'schedule_entity' ? 'Opens the selected schedule helper or integration entity. Wiser programmes can also be edited directly.' : schema.name === 'heating_entities' ? 'Choose the climate entities for your rooms or TRVs, from any HA integration. Each uses its supported controls. Multiple zones use their HA entity names.' : schema.name === 'tank_entities' ? 'Add any number of probes and drag them from top to bottom. The percentage estimate assumes even spacing across the tank height; one probe shows temperature only.' : schema.name === 'oil_cost_entity' ? 'Optional backend ledger; the card only displays estimates and never calculates or stores oil usage in the browser.' : schema.name === 'sections' ? 'Use one section as a standalone card, or combine them. Each card instance has its own entities.' : undefined
   };
 }
 
@@ -603,7 +615,7 @@ class SlateHeatingCard extends HTMLElement {
       panel.setAttribute('aria-label', `${this.channelName(kind)} controls`);
       panel.querySelector('.boost-head').hidden = panel.querySelector('.boost-buttons').hidden = !this.config.show_boost || !this.entityId(kind);
       panel.querySelector('.channel-details').hidden = !this.entityId(kind);
-      const isHeating = !!ready && (attr.is_heating === true || attr.hvac_action === 'heating');
+      const isHeating = heatingActive(entity, kind !== 'water' ? this.config.heating_state_mode : 'reported');
       panel.classList.toggle('is-heating', kind !== 'water' && isHeating);
       const caps = heatingCapabilities(entity), badge = panel.querySelector('.state'); badge.textContent = !ready ? 'Unavailable' : attr.is_boosted ? 'Boosting' : isHeating ? 'Heating' : attr.hvac_action && attr.hvac_action !== 'off' ? titleCase(attr.hvac_action) : entity.state === 'off' ? 'Off' : caps.domain === 'climate' ? 'Idle' : titleCase(entity.state); badge.classList.toggle('active', !!ready && (!!attr.is_boosted || isHeating));
       if (kind !== 'water') panel.querySelector('.reading').textContent = ready ? this.temperature(attr.current_temperature) : '—';
