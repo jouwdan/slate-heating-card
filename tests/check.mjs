@@ -173,3 +173,25 @@ const genericCalls=[];
 await entityAction({callService:async(...args)=>genericCalls.push(args),callWS:async()=>[{entity_id:'water_heater.tank',state:'eco',attributes:{operation_mode:'eco'}}]},'water_heater.tank','set_operation_mode',{operation_mode:'eco'},s=>s.attributes.operation_mode==='eco');
 assert.equal(genericCalls[0][0],'water_heater');assert.equal(genericCalls[0][2].entity_id,'water_heater.tank');
 console.log('Generic heating checks passed: multiple zones, climate capabilities, ranges, water heater modes, switch controls and service routing.');
+
+const { heatingActive } = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
+const thermostat = (state, attributes = {}) => ({state, attributes: {hvac_action:'idle', temperature:17, current_temperature:15.5, ...attributes}});
+assert.equal(heatingActive(thermostat('heat')), false, 'Reported mode must preserve idle devices');
+assert.equal(heatingActive(thermostat('heat'), 'temperature'), true, 'Fallback recognises demand despite idle action');
+for (const attributes of [{temperature:15.5}, {temperature:12}, {temperature:null}, {temperature:'17'}, {temperature:NaN}, {current_temperature:undefined}, {current_temperature:Infinity}]) {
+  assert.equal(heatingActive(thermostat('heat', attributes), 'temperature'), false, 'No demand for satisfied targets or invalid temperatures');
+}
+for (const state of ['off', 'cool', 'auto', 'heat_cool', 'unknown', 'unavailable']) {
+  assert.equal(heatingActive(thermostat(state), 'temperature'), false, 'Fallback only applies to available heat mode');
+}
+for (const mode of ['reported', 'temperature']) {
+  assert.equal(heatingActive(thermostat('heat', {hvac_action:'heating'}), mode), true);
+  assert.equal(heatingActive(thermostat('auto', {is_heating:true}), mode), true);
+  assert.equal(heatingActive(thermostat('unavailable', {hvac_action:'heating', is_heating:true}), mode), false);
+  assert.equal(heatingActive(undefined, mode), false);
+}
+assert.equal(normalizeConfig({}).heating_state_mode, 'reported');
+assert.equal(normalizeConfig({heating_state_mode:'temperature'}).heating_state_mode, 'temperature');
+assert.throws(() => normalizeConfig({heating_state_mode:'invalid'}));
+assert.ok(formFields(configForm().schema).includes('heating_state_mode'));
+console.log('Temperature-demand checks passed: opt-in fallback, reported heating, idle/satisfied/off/unavailable states, numeric validation and editor configuration.');
