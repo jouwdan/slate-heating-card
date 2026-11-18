@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Add an optional temperature-demand fallback for thermostats that report idle while below their target, using the same orange highlight and **Heating** label as reported heating.
+- Keep reported-state behaviour as the default and expose the fallback in the visual editor.
+
 ## 0.1.1 — 2026-10-19
 
 - Highlight actively heating zones with an orange background and border; clear the highlight when heating stops or the zone becomes unavailable.

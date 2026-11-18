@@ -118,6 +118,7 @@ All fields are optional except `type`. Entity fields have no household-specific 
 | `layout` | `auto` | `auto` or `stacked` |
 | `show_header` | `true` | Main heading and multi-zone badge |
 | `heating_entities` | `[]` | Ordered list of unique `climate` entity IDs |
+| `heating_state_mode` | `reported` | `reported` uses the device heating state; `temperature` also shows orange and **Heating** in heat mode when target temperature exceeds room temperature |
 | `heating_name` | `Heating` | Title when there is a single heating zone |
 | `hot_water_entity` | None | `climate`, `water_heater` or `switch` entity |
 | `water_name` | `Hot water` | Hot-water section title |
@@ -142,6 +143,8 @@ All fields are optional except `type`. Entity fields have no household-specific 
 | `oil_price_kwh_entity` | None | Optional price per kWh fallback |
 | `currency` | `EUR` | Three-letter currency code, such as EUR or GBP |
 | `energy_per_litre` | `9` | kWh/L used for price fallback; must match your backend |
+
+For devices that report `idle` while requesting heat, set `heating_state_mode: temperature` on that card (also available under **Heating zones / TRVs → Heating state**). This applies only to its heating zones, preserves reported heating signals, and requires valid numeric temperatures. Orange and **Heating** then indicate estimated demand, not confirmed boiler output. Keep separate card instances for device types that need different reporting rules.
 
 Standard Lovelace options such as `grid_options` and visibility can be used normally.
 
